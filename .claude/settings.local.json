@@ -6,7 +6,8 @@
       "Bash(rm -f generate_license.py private.pem player.c CanguruPlayer.spec Makefile)",
       "Bash(rm -rf hooks/)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(python3 *)"
     ]
   }
 }

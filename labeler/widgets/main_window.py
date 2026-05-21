@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 from .. import theme
 from ..constants import SPEEDS, SHOT_TYPES
 from ..log import logger
+from .crop_dialog import CropDialog
 from .video_widget import VideoWidget
 
 
@@ -61,6 +62,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.labels: list[dict] = []
         self._current_file: str = ""
+        self._crop_rect: tuple[int, int, int, int] | None = None
         self._slider_dragging = False
 
         self.setWindowTitle("Air Hockey Shot Labeler")
@@ -210,6 +212,19 @@ class MainWindow(QMainWindow):
         self._file_lbl.setWordWrap(True)
         sb.addWidget(self._file_lbl)
 
+        self._crop_btn = QPushButton("Set Table Region")
+        self._crop_btn.setStyleSheet(_btn())
+        self._crop_btn.setEnabled(False)
+        self._crop_btn.setToolTip("Select the table area to crop during labeling")
+        self._crop_btn.clicked.connect(self._open_crop_dialog)
+        sb.addWidget(self._crop_btn)
+
+        self._crop_lbl = QLabel("")
+        self._crop_lbl.setStyleSheet(
+            f"color: {p['MUTED']}; font-size: 10px; background: transparent;"
+        )
+        sb.addWidget(self._crop_lbl)
+
         sep1 = QWidget()
         sep1.setFixedHeight(1)
         sep1.setStyleSheet(f"background: {p['BORDER']};")
@@ -285,13 +300,46 @@ class MainWindow(QMainWindow):
         self._current_file = os.path.basename(path)
         self._file_lbl.setText(self._current_file)
         self.labels.clear()
+        self._crop_rect = None
+        self.video_widget.set_crop(None)
+        self._crop_lbl.setText("")
         self._refresh_label_list()
+
+        # Open file and pause on first frame so crop dialog can grab it
         self.video_widget.play(path)
+        self.video_widget.pause()
+
         dur = self.video_widget.duration_ms()
         self._tl_end.setText(self._fmt_ms(dur))
         self._tl_slider.setValue(0)
-        self._play_btn.setText("⏸")
+        self._play_btn.setText("▶")
+        self._crop_btn.setEnabled(True)
         self._timeline_timer.start()
+
+        # Auto-open crop dialog after a short delay (give VideoWidget time to read frame)
+        QTimer.singleShot(300, self._open_crop_dialog)
+
+    def _open_crop_dialog(self) -> None:
+        frame = self.video_widget.get_first_frame()
+        if frame is None:
+            return
+        dlg = CropDialog(frame, self)
+        if dlg.exec() == CropDialog.DialogCode.Accepted:
+            xywh = dlg.crop_xywh()
+            self._crop_rect = xywh
+            self.video_widget.set_crop(xywh)
+            if xywh:
+                x, y, w, h = xywh
+                self._crop_lbl.setText(f"Crop: {w}×{h} at ({x},{y})")
+            else:
+                self._crop_lbl.setText("")
+        else:
+            self._crop_rect = None
+            self.video_widget.set_crop(None)
+            self._crop_lbl.setText("Full frame")
+        # Resume playback after crop is set
+        self.video_widget.resume()
+        self._play_btn.setText("⏸")
 
     # ── Labeling ───────────────────────────────────────────────────────────
 
@@ -340,9 +388,13 @@ class MainWindow(QMainWindow):
         os.makedirs(out_dir, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        export = {
+            "crop_xywh": list(self._crop_rect) if self._crop_rect else None,
+            "labels": self.labels,
+        }
         json_path = os.path.join(out_dir, f"labels_{stamp}.json")
         with open(json_path, "w") as f:
-            json.dump(self.labels, f, indent=2)
+            json.dump(export, f, indent=2)
 
         csv_path = os.path.join(out_dir, f"labels_{stamp}.csv")
         with open(csv_path, "w", newline="") as f:

@@ -35,6 +35,7 @@ class VideoWidget(QWidget):
         self._read_errors = 0
         self._error_state = False
         self._current_filepath: str | None = None
+        self._crop: tuple[int, int, int, int] | None = None  # (x, y, w, h) in frame pixels
 
         self._frame_ready_sig.connect(self._on_frame_ready)
         self._error_sig.connect(self._on_show_error)
@@ -62,6 +63,19 @@ class VideoWidget(QWidget):
         self.setStyleSheet("border: 1px solid #333;")
 
     # ── Public API ─────────────────────────────────────────────────────────
+
+    def set_crop(self, xywh: tuple[int, int, int, int] | None) -> None:
+        self._crop = xywh
+
+    def get_first_frame(self) -> "np.ndarray | None":
+        """Return the first frame of the currently open file, or None."""
+        if not self.cap:
+            return None
+        pos = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        ret, frame = self.cap.read()
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+        return frame if ret else None
 
     def play(self, filepath: str) -> None:
         self.stop()
@@ -153,9 +167,16 @@ class VideoWidget(QWidget):
         )
 
     def _on_frame_ready(self, frame: np.ndarray) -> None:
+        if self._crop:
+            x, y, w, h = self._crop
+            fh, fw = frame.shape[:2]
+            x2 = min(x + w, fw)
+            y2 = min(y + h, fh)
+            if x2 > x and y2 > y:
+                frame = frame[y:y2, x:x2]
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = rgb.shape
-        img = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format.Format_RGB888)
+        fh, fw, ch = rgb.shape
+        img = QImage(rgb.tobytes(), fw, fh, ch * fw, QImage.Format.Format_RGB888)
         pix = QPixmap.fromImage(img).scaled(
             self.video_label.width(), self.video_label.height(),
             Qt.AspectRatioMode.KeepAspectRatio,

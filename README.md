@@ -1,4 +1,4 @@
-# Airhockey Strategic Statistics (ASS)
+# Airhockey Strategic Statistics
 
 A complete pipeline for downloading air hockey tournament footage, annotating shot types using a PyQt6 labeling tool, and preparing a dataset for ML training.
 And a Model to classify the shots.
@@ -43,7 +43,7 @@ Annotators must agree on these definitions before labeling. Consistency matters 
 | 1 | `1` | **Straight** | Puck travels directly forward with no lateral angle |
 | 2 | `2` | **Angle** | Puck is shot diagonally toward the goal without bouncing off a wall |
 | 3 | `3` | **Bank** | Puck deflects off one or more side rails before reaching the goal |
-| 4 | `4` | **Cut** | Short, sharp redirected shot using wrist flick; changes direction abruptly |
+| 4 | `4` | **cut_straight** | Short, sharp redirected shot using wrist flick; changes direction abruptly |
 | 5 | `5` | **Drift / Push** | Slow, controlled slide; no snap — used to bait or set up |
 | 6 | `6` | **Combo / Other** | Multi-step shot or any shot that doesn't clearly fit the above |
 

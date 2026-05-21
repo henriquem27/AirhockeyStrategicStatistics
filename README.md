@@ -1,4 +1,4 @@
-# Airhockey Strategic Statistisc Project
+# Airhockey Strategic Statistics (ASS)
 
 A complete pipeline for downloading air hockey tournament footage, annotating shot types using a PyQt6 labeling tool, and preparing a dataset for ML training.
 And a Model to classify the shots.

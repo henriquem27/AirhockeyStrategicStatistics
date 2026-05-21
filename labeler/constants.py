@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32]
 

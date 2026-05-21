@@ -10,7 +10,7 @@ a = Analysis(
     ['player_gui.py'],
     pathex=[],
     binaries=qt_binaries,
-    datas=qt_datas,
+    datas=qt_datas + [('README.txt', '.')],
     hiddenimports=qt_hiddenimports + collect_submodules('cv2') + [
         'numpy',
         'pandas',
@@ -63,6 +63,6 @@ if sys.platform == 'darwin':
         bundle_identifier='com.airhockey.ahlabeler',
         info_plist={
             'NSHighResolutionCapable': True,
-            'CFBundleShortVersionString': '1.0',
+            'CFBundleShortVersionString': '1.2',
         },
     )

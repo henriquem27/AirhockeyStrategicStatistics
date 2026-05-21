@@ -15,6 +15,7 @@ from .. import theme
 from ..constants import SPEEDS, SHOT_TYPES
 from ..log import logger
 from .crop_dialog import CropDialog
+from .name_dialog import NameDialog, _save_config, _load_config
 from .video_widget import VideoWidget
 
 
@@ -58,12 +59,14 @@ def _btn_shot(label_text: str, key: str) -> str:
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, labeler_name: str = "Unknown"):
         super().__init__()
+        self._labeler_name: str = labeler_name
         self.labels: list[dict] = []
         self._current_file: str = ""
         self._crop_rect: tuple[int, int, int, int] | None = None
         self._slider_dragging = False
+        self._pending_score: bool = False  # waiting for Y/N after a shot label
 
         self.setWindowTitle("Air Hockey Shot Labeler")
         self.setMinimumSize(1100, 660)
@@ -212,6 +215,31 @@ class MainWindow(QMainWindow):
         self._file_lbl.setWordWrap(True)
         sb.addWidget(self._file_lbl)
 
+        # Labeler name row
+        name_row = QWidget()
+        name_row.setStyleSheet("background: transparent;")
+        name_row_layout = QHBoxLayout(name_row)
+        name_row_layout.setContentsMargins(0, 0, 0, 0)
+        name_row_layout.setSpacing(6)
+
+        self._name_lbl = QLabel(f"👤 {self._labeler_name}")
+        self._name_lbl.setStyleSheet(
+            f"color: {p['MUTED']}; font-size: 11px; background: transparent;"
+        )
+        name_row_layout.addWidget(self._name_lbl, 1)
+
+        change_name_btn = QPushButton("Change")
+        change_name_btn.setFixedHeight(24)
+        change_name_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p['ACCENT']}; "
+            f"font-size: 10px; border: 1px solid {p['BORDER']}; border-radius: 4px; padding: 2px 8px; }}"
+            f"QPushButton:hover {{ background: {p['BORDER']}; }}"
+        )
+        change_name_btn.clicked.connect(self._change_name)
+        name_row_layout.addWidget(change_name_btn)
+
+        sb.addWidget(name_row)
+
         self._crop_btn = QPushButton("Set Table Region")
         self._crop_btn.setStyleSheet(_btn())
         self._crop_btn.setEnabled(False)
@@ -231,7 +259,7 @@ class MainWindow(QMainWindow):
         sb.addWidget(sep1)
 
         # Shot type buttons
-        shot_label = QLabel("Shot Type  (hotkeys 1–6)")
+        shot_label = QLabel("Shot Type  (hotkeys 1–7)")
         shot_label.setStyleSheet(f"color: {p['MUTED']}; font-size: 11px; background: transparent;")
         sb.addWidget(shot_label)
 
@@ -247,6 +275,57 @@ class MainWindow(QMainWindow):
         sep2.setFixedHeight(1)
         sep2.setStyleSheet(f"background: {p['BORDER']};")
         sb.addWidget(sep2)
+
+        # ── Score prompt banner (hidden until a shot is labeled) ────────────
+        self._score_prompt = QWidget()
+        self._score_prompt.setStyleSheet(
+            f"background: {p['ACCENT']}; border-radius: 8px;"
+        )
+        sp_layout = QVBoxLayout(self._score_prompt)
+        sp_layout.setContentsMargins(12, 10, 12, 10)
+        sp_layout.setSpacing(8)
+
+        self._score_prompt_shot_lbl = QLabel("")
+        self._score_prompt_shot_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._score_prompt_shot_lbl.setStyleSheet(
+            "color: white; font-size: 11px; font-weight: 500; background: transparent;"
+        )
+        sp_layout.addWidget(self._score_prompt_shot_lbl)
+
+        sp_title = QLabel("Did it score?")
+        sp_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sp_title.setStyleSheet(
+            "color: white; font-size: 17px; font-weight: 800; background: transparent;"
+        )
+        sp_layout.addWidget(sp_title)
+
+        sp_btns = QHBoxLayout()
+        sp_btns.setSpacing(8)
+
+        self._score_yes_btn = QPushButton("✓  Yes  (Y)")
+        self._score_yes_btn.setFixedHeight(38)
+        self._score_yes_btn.setStyleSheet(
+            "QPushButton { background: #22c55e; color: white; font-size: 14px; font-weight: 700; "
+            "border-radius: 6px; border: none; } "
+            "QPushButton:hover { background: #16a34a; }"
+        )
+        self._score_yes_btn.clicked.connect(lambda: self._set_scored(True))
+        sp_btns.addWidget(self._score_yes_btn)
+
+        self._score_no_btn = QPushButton("✗  No  (N)")
+        self._score_no_btn.setFixedHeight(38)
+        self._score_no_btn.setStyleSheet(
+            "QPushButton { background: #ef4444; color: white; font-size: 14px; font-weight: 700; "
+            "border-radius: 6px; border: none; } "
+            "QPushButton:hover { background: #dc2626; }"
+        )
+        self._score_no_btn.clicked.connect(lambda: self._set_scored(False))
+        sp_btns.addWidget(self._score_no_btn)
+
+        sp_layout.addLayout(sp_btns)
+        self._score_prompt.setVisible(False)
+        sb.addWidget(self._score_prompt)
+        # ───────────────────────────────────────────────────────────────────
 
         self._label_count_lbl = QLabel("Labels (0):")
         self._label_count_lbl.setStyleSheet(
@@ -354,18 +433,41 @@ class MainWindow(QMainWindow):
             "file": self._current_file,
             "timestamp_ms": ms,
             "shot_type": shot_type,
+            "scored": None,
+            "labeler": self._labeler_name,
         }
         self.labels.append(entry)
+        self._pending_score = True
         self._refresh_label_list()
-        self._flash_status(f"Labeled: {shot_type} @ {ms}ms")
+        # Show the big score prompt banner
+        self._score_prompt_shot_lbl.setText(f"{shot_type}  @  {self._fmt_ms(ms)}")
+        self._score_prompt.setVisible(True)
         logger.debug("Label added: %s @ %d ms in %s", shot_type, ms, video_id)
+
+    def _set_scored(self, scored: bool) -> None:
+        """Called when Y or N is pressed after a shot label."""
+        if not self.labels:
+            return
+        self.labels[-1]["scored"] = scored
+        self._pending_score = False
+        self._score_prompt.setVisible(False)
+        self._refresh_label_list()
+        result = "✅ Scored!" if scored else "❌ Not scored"
+        self._flash_status(result)
 
     def _refresh_label_list(self) -> None:
         self._label_list.clear()
         for entry in reversed(self.labels):
             ms = entry["timestamp_ms"]
             vid = entry.get("video_id", "")
-            text = f"{self._fmt_ms(ms)}  {entry['shot_type']}  [{vid}]"
+            scored = entry.get("scored")
+            if scored is True:
+                outcome = "✓"
+            elif scored is False:
+                outcome = "✗"
+            else:
+                outcome = "?"
+            text = f"{self._fmt_ms(ms)}  {entry['shot_type']}  {outcome}  [{vid}]"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, ms)
             self._label_list.addItem(item)
@@ -405,7 +507,11 @@ class MainWindow(QMainWindow):
 
         csv_path = os.path.join(out_dir, f"labels_{stamp}.csv")
         with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["video_id", "file", "timestamp_ms", "shot_type"])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["video_id", "file", "timestamp_ms", "shot_type", "scored", "labeler"],
+                extrasaction="ignore",
+            )
             writer.writeheader()
             writer.writerows(self.labels)
 
@@ -505,6 +611,12 @@ class MainWindow(QMainWindow):
             slug, _ = SHOT_TYPES[key]
             self._label_shot(slug)
             return True
+        elif self._pending_score and key == Qt.Key.Key_Y:
+            self._set_scored(True)
+            return True
+        elif self._pending_score and key == Qt.Key.Key_N:
+            self._set_scored(False)
+            return True
         elif key in (Qt.Key.Key_Space, Qt.Key.Key_P):
             self._toggle_pause()
         elif key == Qt.Key.Key_K:
@@ -520,6 +632,18 @@ class MainWindow(QMainWindow):
         else:
             return False
         return True
+
+    def _change_name(self) -> None:
+        dlg = NameDialog(self)
+        if dlg.exec() == NameDialog.DialogCode.Accepted:
+            name = dlg.name().strip()
+            if name:
+                self._labeler_name = name
+                self._name_lbl.setText(f"👤 {name}")
+                config = _load_config()
+                config["labeler_name"] = name
+                _save_config(config)
+                self._flash_status(f"Name updated to '{name}'")
 
     def closeEvent(self, event) -> None:
         self.video_widget.stop()

@@ -1,0 +1,35 @@
+{
+  "crop_xywh": [
+    68,
+    427,
+    351,
+    185
+  ],
+  "labels": [
+    {
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 32566,
+      "shot_type": "straight"
+    },
+    {
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 33666,
+      "shot_type": "angle"
+    },
+    {
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 34133,
+      "shot_type": "bank"
+    },
+    {
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 34533,
+      "shot_type": "bank"
+    },
+    {
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 34933,
+      "shot_type": "cut"
+    }
+  ]
+}

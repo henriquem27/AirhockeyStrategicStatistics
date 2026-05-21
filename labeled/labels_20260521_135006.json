@@ -1,0 +1,11 @@
+{
+  "crop_xywh": null,
+  "labels": [
+    {
+      "video_id": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo",
+      "file": "2026\u29f805\u29f818 - Alex \uff02Sharquin\uff02 Duell (NC-52)(W-96) vs Unranked Player (NC--)(W--)_pzG-Cy6-Lxo.mp4",
+      "timestamp_ms": 1766,
+      "shot_type": "drift_push"
+    }
+  ]
+}

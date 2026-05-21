@@ -69,13 +69,14 @@ class VideoWidget(QWidget):
 
     def get_first_frame(self) -> "np.ndarray | None":
         """Return the first frame of the currently open file, or None."""
-        if not self.cap:
-            return None
-        pos = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        ret, frame = self.cap.read()
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
-        return frame if ret else None
+        with self._lock:
+            if not self.cap:
+                return None
+            pos = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.cap.read()
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+            return frame if ret else None
 
     def play(self, filepath: str) -> None:
         self.stop()

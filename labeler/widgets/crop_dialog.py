@@ -1,43 +1,46 @@
-from PyQt6.QtCore import Qt, QRect, QPoint
+import cv2
+import numpy as np
+from PyQt6.QtCore import Qt, QRect, QRectF, QPoint
 from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QVBoxLayout, QHBoxLayout,
-    QPushButton, QSizePolicy,
+    QPushButton, QSizePolicy, QWidget,
 )
-
-import cv2
-import numpy as np
 
 from .. import theme
 
 
-class _FrameCanvas(QLabel):
-    """QLabel that lets the user drag a crop rectangle."""
+class _FrameCanvas(QWidget):
+    """Widget that shows a frame and lets the user drag a crop rectangle."""
 
     def __init__(self, pixmap: QPixmap, parent=None):
         super().__init__(parent)
-        self._base = pixmap
+        self._orig = pixmap          # full-resolution source pixmap
         self._start: QPoint | None = None
-        self._end: QPoint | None = None
         self._rect: QRect | None = None
-        self.setPixmap(pixmap)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setMinimumSize(400, 300)
+
+    # ── Coordinate helpers ─────────────────────────────────────────────────
+
+    def _layout(self) -> tuple[int, int, float]:
+        """Return (offset_x, offset_y, scale) for the current widget size."""
+        ww, wh = self.width(), self.height()
+        iw, ih = self._orig.width(), self._orig.height()
+        if iw == 0 or ih == 0:
+            return 0, 0, 1.0
+        scale = min(ww / iw, wh / ih)
+        ox = int((ww - iw * scale) / 2)
+        oy = int((wh - ih * scale) / 2)
+        return ox, oy, scale
 
     def rect_in_image(self) -> QRect | None:
-        """Return the crop rect in original image coordinates, or None."""
-        if not self._rect or self._rect.width() < 4 or self._rect.height() < 4:
+        """Return the crop rect in original image pixel coordinates, or None."""
+        if not self._rect or abs(self._rect.width()) < 4 or abs(self._rect.height()) < 4:
             return None
-        # Map from widget coords → image coords
-        pix = self._base
-        ww, wh = self.width(), self.height()
-        iw, ih = pix.width(), pix.height()
-        # Letterbox offsets
-        scale = min(ww / iw, wh / ih)
-        ox = (ww - iw * scale) / 2
-        oy = (wh - ih * scale) / 2
-
+        ox, oy, scale = self._layout()
+        iw, ih = self._orig.width(), self._orig.height()
         r = self._rect.normalized()
         x = int((r.x() - ox) / scale)
         y = int((r.y() - oy) / scale)
@@ -51,47 +54,59 @@ class _FrameCanvas(QLabel):
             return None
         return QRect(x, y, w, h)
 
+    # ── Mouse events ───────────────────────────────────────────────────────
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._start = event.pos()
-            self._end = event.pos()
-            self._rect = QRect(self._start, self._end)
+            self._rect = QRect(self._start, self._start)
             self.update()
 
     def mouseMoveEvent(self, event) -> None:
         if self._start:
-            self._end = event.pos()
-            self._rect = QRect(self._start, self._end)
+            self._rect = QRect(self._start, event.pos())
             self.update()
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self._start:
-            self._end = event.pos()
-            self._rect = QRect(self._start, self._end).normalized()
+            self._rect = QRect(self._start, event.pos()).normalized()
+            self._start = None
+            self.update()
+
+    # ── Paint ──────────────────────────────────────────────────────────────
 
     def paintEvent(self, event) -> None:
-        super().paintEvent(event)
-        if not self._rect:
-            return
-        painter = QPainter(self)
-        r = self._rect.normalized()
-        # Dim outside
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 80))
-        # Clear inside selection
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(r, QColor(0, 0, 0, 255))
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-        # Border
-        pen = QPen(QColor("#3b82f6"), 2)
-        painter.setPen(pen)
-        painter.drawRect(r)
-        # Size hint
-        img_rect = self.rect_in_image()
-        if img_rect:
-            painter.setPen(QColor("white"))
-            painter.drawText(r.bottomLeft() + QPoint(4, -4),
-                             f"{img_rect.width()}×{img_rect.height()}")
-        painter.end()
+        ox, oy, scale = self._layout()
+        iw, ih = self._orig.width(), self._orig.height()
+        sw, sh = int(iw * scale), int(ih * scale)
+        scaled = self._orig.scaled(
+            sw, sh,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor("#0d0d0d"))
+        p.drawPixmap(ox, oy, scaled)
+
+        if self._rect and abs(self._rect.width()) >= 4 and abs(self._rect.height()) >= 4:
+            r = self._rect.normalized()
+            # Dim everything
+            p.fillRect(self.rect(), QColor(0, 0, 0, 130))
+            # Restore image inside selection (undimmed)
+            src = QRectF(r.x() - ox, r.y() - oy, r.width(), r.height())
+            p.drawPixmap(QRectF(r), scaled, src)
+            # Blue border
+            p.setPen(QPen(QColor("#3b82f6"), 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRect(r)
+            # Dimension label
+            ir = self.rect_in_image()
+            if ir:
+                p.setPen(QColor("white"))
+                p.drawText(r.bottomLeft() + QPoint(4, -4),
+                           f"{ir.width()} × {ir.height()}")
+        p.end()
 
 
 class CropDialog(QDialog):
@@ -101,7 +116,7 @@ class CropDialog(QDialog):
         super().__init__(parent)
         p = theme.P
         self.setWindowTitle("Select Table Region")
-        self.setMinimumSize(800, 560)
+        self.setMinimumSize(860, 600)
         self.setStyleSheet(f"background: {p['BG']}; color: {p['TEXT']};")
 
         self._crop: QRect | None = None
@@ -110,12 +125,11 @@ class CropDialog(QDialog):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        hint = QLabel("Drag to select the table region. Press Confirm when done.")
+        hint = QLabel("Drag to select the table region, then click Confirm.")
         hint.setStyleSheet(f"color: {p['MUTED']}; font-size: 12px;")
         layout.addWidget(hint)
 
-        pix = self._frame_to_pixmap(frame)
-        self._canvas = _FrameCanvas(pix, self)
+        self._canvas = _FrameCanvas(self._to_pixmap(frame), self)
         layout.addWidget(self._canvas, 1)
 
         btn_row = QHBoxLayout()
@@ -148,6 +162,7 @@ class CropDialog(QDialog):
             self._crop = r
             self.accept()
         else:
+            # Nothing drawn — treat as skip
             self.reject()
 
     def crop_xywh(self) -> tuple[int, int, int, int] | None:
@@ -158,7 +173,7 @@ class CropDialog(QDialog):
         return None
 
     @staticmethod
-    def _frame_to_pixmap(frame: np.ndarray) -> QPixmap:
+    def _to_pixmap(frame: np.ndarray) -> QPixmap:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb.shape
         img = QImage(rgb.tobytes(), w, h, ch * w, QImage.Format.Format_RGB888)

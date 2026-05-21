@@ -348,17 +348,24 @@ class MainWindow(QMainWindow):
             self._flash_status("Open a video file first.")
             return
         ms = self.video_widget.position_ms()
-        entry = {"file": self._current_file, "timestamp_ms": ms, "shot_type": shot_type}
+        video_id = os.path.splitext(self._current_file)[0]
+        entry = {
+            "video_id": video_id,
+            "file": self._current_file,
+            "timestamp_ms": ms,
+            "shot_type": shot_type,
+        }
         self.labels.append(entry)
         self._refresh_label_list()
         self._flash_status(f"Labeled: {shot_type} @ {ms}ms")
-        logger.debug("Label added: %s @ %d ms", shot_type, ms)
+        logger.debug("Label added: %s @ %d ms in %s", shot_type, ms, video_id)
 
     def _refresh_label_list(self) -> None:
         self._label_list.clear()
         for entry in reversed(self.labels):
             ms = entry["timestamp_ms"]
-            text = f"{self._fmt_ms(ms)}  {entry['shot_type']}"
+            vid = entry.get("video_id", "")
+            text = f"{self._fmt_ms(ms)}  {entry['shot_type']}  [{vid}]"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, ms)
             self._label_list.addItem(item)
@@ -398,7 +405,7 @@ class MainWindow(QMainWindow):
 
         csv_path = os.path.join(out_dir, f"labels_{stamp}.csv")
         with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["file", "timestamp_ms", "shot_type"])
+            writer = csv.DictWriter(f, fieldnames=["video_id", "file", "timestamp_ms", "shot_type"])
             writer.writeheader()
             writer.writerows(self.labels)
 

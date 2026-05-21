@@ -1,14 +1,15 @@
 from PyQt6.QtCore import Qt
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32]
 
 SHOT_TYPES = {
-    Qt.Key.Key_1: ("straight",    "1  Straight"),
-    Qt.Key.Key_2: ("angle",       "2  Angle"),
-    Qt.Key.Key_3: ("bank",        "3  Bank"),
-    Qt.Key.Key_4: ("cut",         "4  Cut"),
-    Qt.Key.Key_5: ("drift_push",  "5  Drift / Push"),
-    Qt.Key.Key_6: ("combo_other", "6  Combo / Other"),
+    Qt.Key.Key_1: ("cut_straight", "1  Cut Straight"),
+    Qt.Key.Key_2: ("cross_straight", "2  Cross Straight"),
+    Qt.Key.Key_3: ("rw_under",     "3  Right-wall under (RWU) bank"),
+    Qt.Key.Key_4: ("lw_under",     "4  Left-wall under (LWU) bank"),
+    Qt.Key.Key_5: ("rw_over",      "5  Right-wall over (RWO) bank"),
+    Qt.Key.Key_6: ("lw_over",      "6  Left-wall over (LWO) bank"),
+    Qt.Key.Key_7: ("forehands",    "7  Forehands"),
 }

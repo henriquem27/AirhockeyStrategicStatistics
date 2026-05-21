@@ -4,7 +4,9 @@
       "Bash(rm -f canguru/license.py canguru/api_client.py canguru/scanner.py canguru/sync.py canguru/trim_worker.py canguru/metadata.py canguru/wfs_direct.py canguru/annotator.py canguru/exporter.py canguru/count_worker.py canguru/config.py)",
       "Bash(rm -f canguru/widgets/license_dialog.py canguru/widgets/settings_dialog.py canguru/widgets/shortcuts_dialog.py canguru/widgets/trim_dialog.py canguru/widgets/capture_dialog.py)",
       "Bash(rm -f generate_license.py private.pem player.c CanguruPlayer.spec Makefile)",
-      "Bash(rm -rf hooks/)"
+      "Bash(rm -rf hooks/)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

@@ -351,31 +351,6 @@ clip_001.mp4,27810,straight
 
 Timestamps mark the moment of mallet contact. During preprocessing for training, extract a ±N frame window around each timestamp to form the clip.
 
----
-
-## Folder Structure
-
-```
-air-hockey-shot-labeling/
-│
-├── raw_footage/          # Downloaded MP4s (not committed to git)
-├── segments/             # 5-minute clips split from raw footage
-├── labeled/              # Exported label JSON/CSV files from annotators
-├── dataset/              # Final processed clips ready for training (generated)
-│
-├── labeler/
-│   ├── main.py           # PyQt6 labeling tool (repurposed DVR player)
-│   └── requirements.txt
-│
-├── scripts/
-│   ├── validate_labels.py
-│   └── extract_clips.py  # Cuts labeled timestamps into clip files
-│
-├── urls.txt              # YouTube URLs to download
-└── README.md
-```
-
----
 
 ## Notes
 

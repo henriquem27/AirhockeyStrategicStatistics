@@ -6,9 +6,9 @@ os.environ.setdefault("OPENCV_LOG_LEVEL", "SILENT")
 
 from PyQt6.QtWidgets import QApplication
 
-from canguru import theme
-from canguru.log import setup_logging, install_excepthook
-from canguru.widgets import MainWindow
+from labeler import theme
+from labeler.log import setup_logging, install_excepthook
+from labeler.widgets import MainWindow
 
 
 def main() -> None:

@@ -1,19 +1,3 @@
-"""
-Centralised logging for Canguru Player.
-
-Call setup_logging() once at startup (player_gui.py does this).
-Every other module should simply use:
-
-    from .log import logger        # inside the canguru package
-    from canguru.log import logger # from player_gui.py
-
-Log file location (in preference order):
-  1. Folder that contains the executable / player_gui.py
-  2. %TEMP% / /tmp  (fallback if the exe folder is read-only)
-
-Log filename: CanguruPlayer.log  (rotates at 5 MB, keeps 2 backups)
-"""
-
 import logging
 import os
 import sys
@@ -21,9 +5,9 @@ import tempfile
 import traceback
 from logging.handlers import RotatingFileHandler
 
-logger = logging.getLogger("canguru")
+logger = logging.getLogger("ahlabeler")
 
-_LOG_FILENAME = "CanguruPlayer.log"
+_LOG_FILENAME = "AHLabeler.log"
 _MAX_BYTES    = 5 * 1024 * 1024   # 5 MB
 _BACKUP_COUNT = 2
 
@@ -78,7 +62,7 @@ def setup_logging(level: int = logging.DEBUG) -> None:
         logger.addHandler(fh)
     except OSError as exc:
         # Last resort: stderr only
-        print(f"[canguru.log] Could not open log file: {exc}", file=sys.stderr)
+        print(f"[ahlabeler.log] Could not open log file: {exc}", file=sys.stderr)
 
     # ── Console handler (stderr) — useful during development ─────────────
     ch = logging.StreamHandler(sys.stderr)
@@ -87,7 +71,7 @@ def setup_logging(level: int = logging.DEBUG) -> None:
     logger.addHandler(ch)
 
     logger.info("=" * 60)
-    logger.info("Canguru Player starting — log file: %s", log_path())
+    logger.info("AH Labeler starting — log file: %s", log_path())
     logger.info("Python %s | platform: %s", sys.version.split()[0], sys.platform)
 
 
